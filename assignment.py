@@ -103,11 +103,13 @@ def drawTANK(screen, angle,TANKImage,TANKScale):
     return TANK_drawn_surf, TANK_rect 
 
 #TANK_drawn_surf, TANK_rect
-def moveTank(TANK_rect,speed,Tank_angle,wheel_base=2,dt=1):#assume speed=[vl,vr]
-    speed_y=-speed*math.sin(math.radians(Tank_angle))
-    speed_x=speed*math.cos(math.radians(Tank_angle))
+def moveTank(TANK_rect,speed,Tank_angle,dt):#assume speed=[vl,vr]
+    theta=(-(speed[0]-speed[1])/100)*dt
+    speed_value=(speed[0]+speed[1])/20
+    speed_y=-speed_value*math.sin(math.radians(Tank_angle+theta))*dt
+    speed_x=speed_value*math.cos(math.radians(Tank_angle+theta))*dt
     TANK_rect.move_ip(speed_x, speed_y)    
-    Tank_angle -= 1
+    Tank_angle += theta
     TANK_drawn_surf = pygame.transform.rotozoom(TANKImage, Tank_angle, TANK_SCALE)
     TANK_rect=TANK_drawn_surf.get_rect(center=TANK_rect.center)
     return TANK_drawn_surf, TANK_rect,Tank_angle
@@ -144,15 +146,13 @@ drawMap(screen)
 pygame.display.set_caption("Random Points + collidepoint (pygame 2.6.1)")
 clock = pygame.time.Clock()
 TANKImage=loadTANKImage()
-TANK_drawn_surf, TANK_rect=drawTANK(screen,TANK_ANGLE,TANKImage,TANK_SCALE)
-
 index=0
 running = True
-speed=4
+speed=[0.8,0.1]
 TANK_drawn_surf, TANK_rect=drawTANK(screen,TANK_ANGLE,TANKImage,TANK_SCALE)
 
 while running:
-    dt = clock.tick(50)
+    dt = clock.tick(40)
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
@@ -160,7 +160,7 @@ while running:
     drawMap(screen)
     
     pygame.draw.rect(screen, (255, 0, 0), TANK_rect, 1)
-    TANK_drawn_surf, TANK_rect,TANK_ANGLE=moveTank(TANK_rect,speed,TANK_ANGLE,wheel_base=500,dt=dt)
+    TANK_drawn_surf, TANK_rect,TANK_ANGLE=moveTank(TANK_rect,speed=speed,Tank_angle=TANK_ANGLE,dt=dt)
     pygame.draw.rect(screen, (255, 255, 0), TANK_rect, 2)
 
     SR = trace_to_screen(TANK_rect, TANK_ANGLE-90, MAX_TRACE_DISTANCE, screen.get_size())
