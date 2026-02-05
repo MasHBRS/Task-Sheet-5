@@ -6,13 +6,16 @@ import math
 # -------------------- CONSTANTS --------------------
 WIDTH, HEIGHT = 1000, 500
 SIZE = (WIDTH, HEIGHT)
+BATTERY_MAX=1
 Charging_RADIUS=150
+Battery_Level=1
+Battery_Decharge_Rate=0.01
+
 LIGHT_RADIUS=20
 CHARGING_POS=(0,0)
 TANK_POS=(400,250)
 TANK_ANGLE=90
 TANK_SCALE=0.1
-TANK_BATTERY_LEVEL=150
 GRAY = (150, 150, 150)
 GRAY_BORDER=(40,40,40)
 GREEN = (0, 200, 0)
@@ -23,7 +26,6 @@ BLACK = (0, 0, 0)
 FPS = 60
 MAX_TRACE_DISTANCE=100
 VL= VR= SL= SM= SR= 0
-Battery_Max=200
 
 def drawMap(screen):
     screen.fill(GRAY)
@@ -115,7 +117,7 @@ def moveTank(TANK_rect,speed,Tank_angle,dt):#assume speed=[vl,vr]
     TANK_rect=TANK_drawn_surf.get_rect(center=TANK_rect.center)
     return TANK_drawn_surf, TANK_rect,Tank_angle
 
-def displayValues(screen, SL, SM, SR, font,charging_area,front,back,battery_level, VL, VR):
+def displayValues(screen, SL, SM, SR, font,charging_area,front,back,Battery_Level, VL, VR):
     try:
         text_SL = font.render(f"SL: {SL:.3f}" if SL !=(None, None) else 'SL: None', True, BLUE)
         text_SM = font.render(f"SM: {SM:.3f}" if SM !=(None, None) else 'SM: None', True, BLUE)
@@ -123,11 +125,11 @@ def displayValues(screen, SL, SM, SR, font,charging_area,front,back,battery_leve
         text_charging_area = font.render(f"Grnd: {1 if charging_area else 0}", True, BLUE)
         text_front = font.render(f"Frnt: {front:.3f}", True, BLUE)
         text_back = font.render(f"Bck: {back:.3f}", True, BLUE)
-        text_battery_level = font.render(f"Batt: {battery_level}", True, BLUE)
+        text_Battery_Level = font.render(f"Batt: {Battery_Level}", True, BLUE)
         text_VL = font.render(f"VL: {VL:.3f}", True, BLUE)
         text_VR = font.render(f"VR: {VR:.3f}", True, BLUE)
     except:
-        battery_level=0
+        Battery_Level=0
     
     
     screen.blit(text_SL, (WIDTH*0.9, 10))
@@ -136,7 +138,7 @@ def displayValues(screen, SL, SM, SR, font,charging_area,front,back,battery_leve
     screen.blit(text_charging_area, (WIDTH*0.9, 70))
     screen.blit(text_front, (WIDTH*0.9, 90))
     screen.blit(text_back, (WIDTH*0.9, 110))
-    screen.blit(text_battery_level, (WIDTH*0.9, 130))
+    screen.blit(text_Battery_Level, (WIDTH*0.9, 130))
     screen.blit(text_VL, (WIDTH*0.9, 150))
     screen.blit(text_VR, (WIDTH*0.9, 170))
 
@@ -149,11 +151,12 @@ clock = pygame.time.Clock()
 TANKImage=loadTANKImage()
 index=0
 running = True
-speed=[2,1]
+speed=[1,4] #    speed=random.randint(-5,5),random.randint(-5,5)
 TANK_drawn_surf, TANK_rect=drawTANK(screen,TANK_ANGLE,TANKImage,TANK_SCALE)
 
 while running:
-    dt = clock.tick(40)
+    dt = clock.tick(80)
+    print(f"dt: {dt}")
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
@@ -171,8 +174,7 @@ while running:
     charging_area=ground_sensor_is_in_black_area(screen,TANK_rect)
     screen.blit(TANK_drawn_surf, TANK_rect)
 
-    displayValues(screen, SL, SM, SR, font,charging_area,front,back, TANK_BATTERY_LEVEL, VL, VR)
-    
+    displayValues(screen, SL, SM, SR, font,charging_area,front,back, Battery_Level, VL, VR)
     pygame.display.flip()
     clock.tick(FPS) 
 pygame.quit()
