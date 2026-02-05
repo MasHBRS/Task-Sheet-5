@@ -104,11 +104,12 @@ def drawTANK(screen, angle,TANKImage,TANKScale):
 
 #TANK_drawn_surf, TANK_rect
 def moveTank(TANK_rect,speed,Tank_angle,dt):#assume speed=[vl,vr]
-    theta=(-(speed[0]-speed[1])/100)*dt
-    speed_value=(speed[0]+speed[1])/20
-    speed_y=-speed_value*math.sin(math.radians(Tank_angle+theta))*dt
-    speed_x=speed_value*math.cos(math.radians(Tank_angle+theta))*dt
-    TANK_rect.move_ip(speed_x, speed_y)    
+    theta=(-(speed[0]-speed[1])/10)*dt
+    speed_value=(speed[0]+speed[1])/2
+    speed_y=-speed_value*math.sin(math.radians(Tank_angle+theta))*dt/5
+    speed_x=speed_value*math.cos(math.radians(Tank_angle+theta))*dt/5
+    #TANK_rect.move_ip(speed_x, speed_y)    
+    TANK_rect.center = (TANK_rect.center[0] + speed_x, TANK_rect.center[1] + speed_y)
     Tank_angle += theta
     TANK_drawn_surf = pygame.transform.rotozoom(TANKImage, Tank_angle, TANK_SCALE)
     TANK_rect=TANK_drawn_surf.get_rect(center=TANK_rect.center)
@@ -148,7 +149,7 @@ clock = pygame.time.Clock()
 TANKImage=loadTANKImage()
 index=0
 running = True
-speed=[0.8,0.1]
+speed=[2,1]
 TANK_drawn_surf, TANK_rect=drawTANK(screen,TANK_ANGLE,TANKImage,TANK_SCALE)
 
 while running:
