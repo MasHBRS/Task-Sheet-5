@@ -104,17 +104,12 @@ def drawTANK(screen, angle,TANKImage,TANKScale):
 
 #TANK_drawn_surf, TANK_rect
 def moveTank(TANK_rect,speed,Tank_angle,wheel_base=2,dt=1):#assume speed=[vl,vr]
-    #TANK_rect.move_ip(speed)
-    v = (speed[0] + speed[1]) / 2                 # forward speed px/s
-    omega = (speed[1] - speed[0]) / wheel_base  # turn rate rad/s
-    dx =math.cos(Tank_angle)  if Tank_angle%3==0 else 1 #v * math.cos(Tank_angle)*dt
-    dy =math.sin(Tank_angle)  if Tank_angle%3==0 else 1#v * math.sin(Tank_angle)*dt
-    TANK_rect.move_ip(dx, dy)
-
-    
-    Tank_angle += 3  if Tank_angle%3==0 else 1  #math.degrees(Tank_angle) - 90   # rotozoom: 0°=up
+    speed_y=-speed*math.sin(math.radians(Tank_angle))
+    speed_x=speed*math.cos(math.radians(Tank_angle))
+    TANK_rect.move_ip(speed_x, speed_y)    
+    Tank_angle -= 1
     TANK_drawn_surf = pygame.transform.rotozoom(TANKImage, Tank_angle, TANK_SCALE)
-    TANK_drawn_surf.get_rect(center=TANK_rect.center)
+    TANK_rect=TANK_drawn_surf.get_rect(center=TANK_rect.center)
     return TANK_drawn_surf, TANK_rect,Tank_angle
 
 def displayValues(screen, SL, SM, SR, font,charging_area,front,back,battery_level, VL, VR):
@@ -153,7 +148,7 @@ TANK_drawn_surf, TANK_rect=drawTANK(screen,TANK_ANGLE,TANKImage,TANK_SCALE)
 
 index=0
 running = True
-speed=[1,1]
+speed=4
 TANK_drawn_surf, TANK_rect=drawTANK(screen,TANK_ANGLE,TANKImage,TANK_SCALE)
 
 while running:
@@ -164,12 +159,15 @@ while running:
 
     drawMap(screen)
     
+    pygame.draw.rect(screen, (255, 0, 0), TANK_rect, 1)
+    TANK_drawn_surf, TANK_rect,TANK_ANGLE=moveTank(TANK_rect,speed,TANK_ANGLE,wheel_base=500,dt=dt)
+    pygame.draw.rect(screen, (255, 255, 0), TANK_rect, 2)
+
     SR = trace_to_screen(TANK_rect, TANK_ANGLE-90, MAX_TRACE_DISTANCE, screen.get_size())
     SM = trace_to_screen(TANK_rect, TANK_ANGLE, MAX_TRACE_DISTANCE, screen.get_size())
     SL = trace_to_screen(TANK_rect, TANK_ANGLE+90, MAX_TRACE_DISTANCE, screen.get_size())
     front,back=trace_to_light(TANK_rect, TANK_ANGLE, MAX_TRACE_DISTANCE, screen.get_size())
     charging_area=ground_sensor_is_in_black_area(screen,TANK_rect)
-    TANK_drawn_surf, TANK_rect,TANK_ANGLE=moveTank(TANK_rect,speed,TANK_ANGLE,wheel_base=500,dt=dt)
     screen.blit(TANK_drawn_surf, TANK_rect)
 
     displayValues(screen, SL, SM, SR, font,charging_area,front,back, TANK_BATTERY_LEVEL, VL, VR)
