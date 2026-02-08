@@ -1,6 +1,6 @@
 import torch as t
 import pygame,math
-
+import numpy as np
 # -------------------- CONSTANTS --------------------
 WIDTH, HEIGHT = 1000, 500
 SIZE = (WIDTH, HEIGHT)
@@ -20,17 +20,15 @@ TANK_POS=(400,250)
 TANK_ANGLE=90
 
 class Tank():
-    def moveTank(self, TANK_rect,speed,Tank_angle,dt):#assume speed=[vl,vr]
+    def moveTank(self,speed,dt):#assume speed=[vl,vr]
         theta=(-(speed[0]-speed[1])/10)*dt
         speed_value=(speed[0]+speed[1])/2
-        speed_y=-speed_value*math.sin(math.radians(Tank_angle+theta))*dt/5
-        speed_x=speed_value*math.cos(math.radians(Tank_angle+theta))*dt/5
-        #TANK_rect.move_ip(speed_x, speed_y)    
-        TANK_rect.center = (TANK_rect.center[0] + speed_x, TANK_rect.center[1] + speed_y)
-        Tank_angle += theta
-        TANK_drawn_surf = pygame.transform.rotozoom(self.TANKImage, Tank_angle, self.TANKScale)
-        TANK_rect=TANK_drawn_surf.get_rect(center=TANK_rect.center)
-        return TANK_drawn_surf, TANK_rect,Tank_angle
+        speed_y=-speed_value*math.sin(math.radians(self.TANK_ANGLE+theta))*dt/5
+        speed_x=speed_value*math.cos(math.radians(self.TANK_ANGLE+theta))*dt/5
+        self.TANK_rect.center = (self.TANK_rect.center[0] + speed_x, self.TANK_rect.center[1] + speed_y)
+        self.TANK_ANGLE += theta
+        self.TANK_drawn_surf = pygame.transform.rotozoom(self.TANKImage, self.TANK_ANGLE, self.TANKScale)
+        self.TANK_rect=self.TANK_drawn_surf.get_rect(center=self.TANK_rect.center)
         
     def __init__(self, screen, individual_weight,initial_angle,
                  initial_position,TANK_IMAGE,TANK_SCALE,
@@ -50,30 +48,30 @@ class Tank():
         self.TANK_drawn_surf=TANK_drawn_surf 
         self.TANK_rect=TANK_rect
 
-    def ground_sensor_is_in_black_area(self,screen,TANK_rect):
-            x,y=TANK_rect.center[0],TANK_rect.center[1]
+    def ground_sensor_is_in_black_area(self):
+            x,y=self.TANK_rect.center[0],self.TANK_rect.center[1]
             if math.sqrt(x**2+y**2)<=self.Charging_RADIUS:
                 return True
             return False
     
-    def trace_to_light(self,TANK_rect, theta_deg, distance, screen_size):
-        W, H = screen_size
+    def trace_to_light(self):
+        W, H = self.screen.get_size()
         diagon = math.hypot(W, H)
 
         screen_rect = pygame.Rect(0, 0, W, H)
 
-        start_pos_x_front_sensor = int(TANK_rect.center[0]+(61//2)*math.cos(math.radians(self.TANK_ANGLE)))
-        start_pos_y_front_sensor = int(TANK_rect.center[1]-(61//2)*math.sin(math.radians(self.TANK_ANGLE)))
+        start_pos_x_front_sensor = int(self.TANK_rect.center[0]+(61//2)*math.cos(math.radians(self.TANK_ANGLE)))
+        start_pos_y_front_sensor = int(self.TANK_rect.center[1]-(61//2)*math.sin(math.radians(self.TANK_ANGLE)))
         pygame.draw.circle(self.screen, (255, 255, 255), (start_pos_x_front_sensor, start_pos_y_front_sensor), 5)
 
-        start_pos_x_back_sensor = int(TANK_rect.center[0]-(61//2)*math.cos(math.radians(self.TANK_ANGLE)))
-        start_pos_y_back_sensor = int(TANK_rect.center[1]+(61//2)*math.sin(math.radians(self.TANK_ANGLE)))
+        start_pos_x_back_sensor = int(self.TANK_rect.center[0]-(61//2)*math.cos(math.radians(self.TANK_ANGLE)))
+        start_pos_y_back_sensor = int(self.TANK_rect.center[1]+(61//2)*math.sin(math.radians(self.TANK_ANGLE)))
         pygame.draw.circle(self.screen, (255, 255, 255), (start_pos_x_back_sensor, start_pos_y_back_sensor), 5)
 
         return math.hypot(start_pos_x_front_sensor,start_pos_y_front_sensor)/diagon, math.hypot(start_pos_x_back_sensor,start_pos_y_back_sensor)/diagon
 
     def computeFitness(self):
-        self.individual_weight[-1]=self.v.mean()*(1-self.i.mean())
+        self.individual_weight[-1]=np.mean(self.v)*(1-np.mean(self.i))
         print(f"Fitness: {self.individual_weight[-1]:.4f}")
 
 
@@ -145,29 +143,33 @@ class Tank():
         self.screen.blit(text_VL, (WIDTH*0.9, 150))
         self.screen.blit(text_VR, (WIDTH*0.9, 170))
 
+    def calcOutput(self,SL, SM, SR, lightFront,lightBack, blackSensor,Battery_Level):
+        inputTensor=t.tensor([SL, SM, SR, lightFront,lightBack, blackSensor,Battery_Level])
+        hiddenLayer=inputTensor@self.individual_weight[:35].reshape(7,5) #shape:(1,7)@(7,5)=(1,5)
+        hiddenLayer+=self.individual_weight[35:40]+self.individual_weight[40:45] #adding recurrents and biases. shape: rec(1,5)
+        hiddenLayer=self.activatio_function_hidden_layer(hiddenLayer) #shape: (1,5)
+        self.individual_weight[35:40]=hiddenLayer #updating the recurrents. shape:(1,5)
+        outputlayer=hiddenLayer@self.individual_weight[45:55].reshape(5,2) #shape:(1,5)@(5,2)=(1,2)
+        outputlayer+=self.individual_weight[55:57] #adding bias. shape:rec(1,2)
+        outputlayer=self.activatio_function_final_layer(outputlayer)
+        return outputlayer
+
     def step(self,dt):
         SR = self.trace_to_screen(self.TANK_rect, self.TANK_ANGLE-90, self.MAX_TRACE_DISTANCE, self.screen.get_size())
         SM = self.trace_to_screen(self.TANK_rect, self.TANK_ANGLE, self.MAX_TRACE_DISTANCE, self.screen.get_size())
         SL = self.trace_to_screen(self.TANK_rect, self.TANK_ANGLE+90, self.MAX_TRACE_DISTANCE, self.screen.get_size())
         if SL==(None,None) or SM==(None,None) or SR==(None,None):
             return self.individual_weight
-        lightFront,lightBack=self.trace_to_light(self.TANK_rect, self.TANK_ANGLE, self.MAX_TRACE_DISTANCE, self.screen.get_size())
-        blackSensor=self.ground_sensor_is_in_black_area(self.screen,self.TANK_rect)
+        lightFront,lightBack=self.trace_to_light()
+        blackSensor=self.ground_sensor_is_in_black_area()
         self.screen.blit(self.TANK_drawn_surf, self.TANK_rect)
-        self.displayValues(SL, SM, SR, blackSensor,lightFront,lightBack, -9, -9)
         self.i.append((SL+SM+SR)/3)
-
-        inputTensor=t.tensor([SL, SM, SR, lightFront,lightBack, blackSensor,self.Battery_Level])
-        hiddenLayer=inputTensor@self.individual_weight[:35].reshape(7,5) #shape:(1,7)@(7,5)=(1,5)
-        hiddenLayer+=self.individual_weight[35:40]+self.individual_weight[40:45] #shape:rec(1,5)+bias(1,5)=(1,5)
-        hiddenLayer=self.activatio_function_hidden_layer(hiddenLayer)
-        self.individual_weight[35:40]=hiddenLayer #updating the recurrents. shape:(1,5)
-        outputlayer=hiddenLayer@self.individual_weight[45:55].reshape(5,2) #shape:(1,5)@(5,2)=(1,2)
-        outputlayer+=self.individual_weight[55:57] #adding bias. shape:rec(1,2)
-        outputlayer=self.activatio_function_final_layer(outputlayer)
-        VL,VR=outputlayer[0],outputlayer[1]
-        self.TANK_drawn_surf, self.TANK_rect,self.Tank_angle=self.moveTank(self.TANK_rect,outputlayer,self.TANK_ANGLE,dt)
-        self.v.append(VL**2+VR**2)
+        
+        outputlayer=self.calcOutput(SL, SM, SR, lightFront,lightBack, blackSensor,self.Battery_Level)
+        outputlayer=t.tensor([0.1,0.9])
+        self.displayValues(SL, SM, SR, blackSensor,lightFront,lightBack, *outputlayer)
+        self.moveTank(outputlayer,dt)
+        self.v.append((outputlayer[0]**2+outputlayer[1]**2).item())
         self.Battery_Level-=self.BATTERY_DECHARGE_RATE
         self.screen.blit(self.TANK_drawn_surf, self.TANK_rect)
         return outputlayer
